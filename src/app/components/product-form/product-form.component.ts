@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, Router } from '@angular/router';
 import { ProductService } from '../../services/product.service';
 import { Product } from '../../models/product';
+import { HttpClient } from '@angular/common/http';
 
 @Component({
   selector: 'app-product-form',
@@ -37,8 +38,11 @@ import { Product } from '../../models/product';
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium">Image URL</label>
-          <input type="text" formControlName="imageUrl" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+          <label class="block text-sm font-medium">Image</label>
+          <input type="file" (change)="uploadImage($event)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+        </div>
+        <div *ngIf="productForm.get('imageUrl')?.value">
+          <img [src]="productForm.get('imageUrl')?.value" alt="Uploaded Image" class="mt-2 w-32 h-32 object-cover">
         </div>
         <div>
           <label class="block text-sm font-medium">In Stock</label>
@@ -66,12 +70,14 @@ import { Product } from '../../models/product';
 export class ProductFormComponent implements OnInit {
   productForm: FormGroup;
   isEditing = false;
+  uploadUrl = 'http://paucano.ddns.net/images/upload.php'; // Change this to your Raspberry Pi's IP
 
   constructor(
     private fb: FormBuilder,
     private productService: ProductService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private http: HttpClient
   ) {
     this.productForm = this.fb.group({
       id: [''],
@@ -102,6 +108,22 @@ export class ProductFormComponent implements OnInit {
     }
   }
 
+  uploadImage(event: any) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('fileToUpload', file);
+
+    this.http.post(this.uploadUrl, formData, { responseType: 'text' })
+      .subscribe((response: any) => {
+        const imageUrl = `${this.uploadUrl.replace('upload.php', '')}${file.name}`;
+        this.productForm.patchValue({ imageUrl });
+      }, error => {
+        console.error('Image upload failed:', error);
+      });
+  }
+
   onSubmit() {
     if (this.productForm.valid) {
       const formValue = this.productForm.value;
@@ -110,7 +132,7 @@ export class ProductFormComponent implements OnInit {
         colors: formValue.colors.split(',').map((color: string) => color.trim()),
         sizes: formValue.sizes.split(',').map((size: string) => size.trim())
       };
-      
+
       if (this.isEditing) {
         this.productService.updateProduct(product);
       } else {

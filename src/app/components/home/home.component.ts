@@ -17,13 +17,7 @@ import { Product } from '../../models/product';
         >
       </div>
 
-      <section class="py-16">
-        <h2 class="text-2xl font-bold mb-8 px-4">Lo mejor y más nuevo</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-4">
-        </div>
-      </section>
-
-      <section class="py-16">
+      <section class="py-16 mx-10">
         <h2 class="text-2xl font-bold mb-8 px-4">Lo mejor y más nuevo</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-4">
           <div *ngFor="let product of featuredProducts" class="border rounded-lg overflow-hidden shadow-lg">
