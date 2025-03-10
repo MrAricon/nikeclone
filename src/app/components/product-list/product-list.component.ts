@@ -23,7 +23,7 @@ import { Product } from '../../models/product';
           </div>
         </div>
       </div>
-      <a routerLink="/products/new" class="mt-6 inline-block bg-black text-white py-2 px-4 rounded-md hover:bg-gray-800">
+      <a routerLink="/admin" class="mt-6 inline-block bg-black text-white py-2 px-4 rounded-md hover:bg-gray-800">
         Add New Product
       </a>
     </div>
