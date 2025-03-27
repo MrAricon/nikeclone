@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-navbar',
@@ -11,8 +12,8 @@ import { RouterLink } from '@angular/router';
       <div class="flex justify-end gap-4 px-4 py-2 bg-gray-100 text-sm">
         <a href="#" class="hover:text-gray-600">Buscar una tienda</a>
         <a href="#" class="hover:text-gray-600">Ayuda</a>
-        <a href="#" class="hover:text-gray-600">Únete a nosotros</a>
-        <a href="#" class="hover:text-gray-600">Iniciar sesión</a>
+        <a routerLink="/register" class="hover:text-gray-600">Únete a nosotros</a>
+        <a routerLink="/login" class="hover:text-gray-600">Iniciar sesión</a>
       </div>
 
       <div class="flex items-center justify-between px-4 py-2">
@@ -29,7 +30,7 @@ import { RouterLink } from '@angular/router';
         <div class="hidden lg:flex items-center gap-8">
           <a routerLink="/" class="hover:underline">Home</a>
           <a routerLink="/products" class="hover:underline">Productos</a>
-          <a routerLink="/admin" class="hover:underline">Admin</a>
+          <a *ngIf="isAdmin" routerLink="/admin" class="hover:underline">Admin</a>
         </div>
 
         <div class="flex items-center gap-4">
@@ -48,4 +49,14 @@ import { RouterLink } from '@angular/router';
     </nav>
   `
 })
-export class NavbarComponent { }
+export class NavbarComponent { 
+  isAdmin?: boolean;
+  username?: string;
+
+  constructor (private authService: AuthService) {}
+
+  ngOnInit(): void {
+    this.isAdmin = this.authService.getRoles()?.split(',').some(role => role == '1');
+    //this.username = this.authService.getUser();
+  }
+}

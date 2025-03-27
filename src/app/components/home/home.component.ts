@@ -1,7 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ProductService } from '../../services/product.service';
+import { AuthService } from '../../services/auth.service';
 import { Product } from '../../models/product';
+import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-home',
@@ -20,12 +22,12 @@ import { Product } from '../../models/product';
       <section class="py-16 mx-10">
         <h2 class="text-2xl font-bold mb-8 px-4">Lo mejor y más nuevo</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-4">
-          <div *ngFor="let product of featuredProducts" class="border rounded-lg overflow-hidden shadow-lg">
-            <img [src]="product.imageUrl" [alt]="product.name" class="w-full h-64 object-cover">
+          <div *ngFor="let product of products$ | async" class="border rounded-lg overflow-hidden shadow-lg">
+            <img [src]="product.image_url" [alt]="product.name" class="w-full h-64 object-cover">
             <div class="p-4">
               <h3 class="text-xl font-semibold mb-2">{{ product.name }}</h3>
               <p class="text-gray-600 mb-2">{{ product.description }}</p>
-              <p class="text-lg font-bold">€{{ product.price.toFixed(2) }}</p>
+              <p class="text-lg font-bold">€{{ product.price }}</p>
             </div>
           </div>
         </div>
@@ -34,13 +36,18 @@ import { Product } from '../../models/product';
   `
 })
 export class HomeComponent implements OnInit {
-  featuredProducts: Product[] = [];
+  products$!: Observable<Product[]>; // Observable to handle products
+  isAuthenticated = false;
+  userRoles: string | null = null;
 
-  constructor(private productService: ProductService) {}
+  constructor(private productService: ProductService, private authService: AuthService) {}
 
   ngOnInit() {
-    this.productService.getProducts().subscribe(products => {
-      this.featuredProducts = products.slice(0, 3); // Show up to 3 featured products
+    this.authService.getAuthState().subscribe(isAuth => {
+      this.isAuthenticated = isAuth;
+      this.userRoles = this.authService.getRoles();
     });
+
+    this.products$ = this.productService.getProducts();
   }
 }

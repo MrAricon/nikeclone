@@ -3,15 +3,19 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ProductService } from '../../services/product.service';
+import { AuthService } from '../../services/auth.service';
 import { Product } from '../../models/product';
 import { HttpClient } from '@angular/common/http';
+import { Observable, switchMap, of } from 'rxjs';
 
 @Component({
   selector: 'app-product-form',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   template: `
-    <form [formGroup]="productForm" (ngSubmit)="onSubmit()" class="max-w-2xl mx-auto p-6">
+    <div *ngIf="loading" class="text-center p-4">Loading product...</div>
+<div class="max-w-2xl mx-auto p-6">
+    <form *ngIf="!loading" [formGroup]="productForm" (ngSubmit)="onSubmit()">
       <div class="space-y-6">
         <div>
           <label class="block text-sm font-medium">Serial Number</label>
@@ -65,16 +69,28 @@ import { HttpClient } from '@angular/common/http';
         </button>
       </div>
     </form>
+    <br>
+    <button 
+      (click)="deleteProduct()"
+      *ngIf="isEditing"
+      class="w-full bg-black text-white py-2 px-4 rounded-md hover:bg-gray-800 disabled:bg-gray-400"
+    >
+      Delete Product
+    </button>
+    </div>
   `
 })
 export class ProductFormComponent implements OnInit {
   productForm: FormGroup;
   isEditing = false;
-  uploadUrl = 'http://paucano.ddns.net/images/upload.php'; // Change this to your Raspberry Pi's IP
+  uploadUrl = 'http://paucano.ddns.net/images/upload.php';
+  loading = false;
+  productId?: string;
 
   constructor(
     private fb: FormBuilder,
     private productService: ProductService,
+    private authService: AuthService,
     private router: Router,
     private route: ActivatedRoute,
     private http: HttpClient
@@ -86,7 +102,7 @@ export class ProductFormComponent implements OnInit {
       price: [0, [Validators.required, Validators.min(0)]],
       description: ['', [Validators.required, Validators.maxLength(500)]],
       category: ['', Validators.required],
-      imageUrl: ['', Validators.required],
+      imageUrl: [''],
       inStock: [true],
       colors: [''],
       sizes: ['']
@@ -94,27 +110,53 @@ export class ProductFormComponent implements OnInit {
   }
 
   ngOnInit() {
-    const id = this.route.snapshot.paramMap.get('id');
-    if (id) {
-      this.isEditing = true;
-      const product = this.productService.getProductById(id);
+    console.log(this.authService.getRoles());
+  
+    if (this.authService.getRoles() !== '1') {
+      this.router.navigate(['/home']);
+    }
+  
+    this.route.paramMap.pipe(
+      switchMap(params => {
+        const id = params.get('id');
+        this.productId = id || undefined;
+        if (id) {
+          this.isEditing = true;
+          this.loading = true;
+          return this.productService.getProductById(id);
+        }
+        return of(null);
+      })
+    ).subscribe(product => {
       if (product) {
+        const colors = Array.isArray(product.colors) ? product.colors.join(', ') : '';
+        const sizes = Array.isArray(product.sizes) ? product.sizes.join(', ') : '';
+        
         this.productForm.patchValue({
           ...product,
-          colors: product.colors.join(', '),
-          sizes: product.sizes.join(', ')
+          imageUrl: product.image_url,
+          colors: colors,
+          sizes: sizes,
+          serialNumber: product.id
         });
       }
-    }
+      this.loading = false;
+    }, error => {
+      console.error('Error fetching product:', error);
+      this.loading = false;
+    });
   }
 
   uploadImage(event: any) {
     const file = event.target.files[0];
-    if (!file) return;
-
+  
+    if (!file) {
+      return;
+    }
+  
     const formData = new FormData();
     formData.append('fileToUpload', file);
-
+  
     this.http.post(this.uploadUrl, formData, { responseType: 'text' })
       .subscribe((response: any) => {
         const imageUrl = `${this.uploadUrl.replace('upload.php', '')}${file.name}`;
@@ -122,6 +164,13 @@ export class ProductFormComponent implements OnInit {
       }, error => {
         console.error('Image upload failed:', error);
       });
+  }
+  
+  deleteProduct() {
+    if (this.productId) {
+      this.productService.deleteProduct(this.productId);
+      this.productService.getProducts();
+    }
   }
 
   onSubmit() {
@@ -132,13 +181,16 @@ export class ProductFormComponent implements OnInit {
         colors: formValue.colors.split(',').map((color: string) => color.trim()),
         sizes: formValue.sizes.split(',').map((size: string) => size.trim())
       };
+      
+      let action$: Observable<Product>;
 
       if (this.isEditing) {
-        this.productService.updateProduct(product);
+        action$ = this.productService.updateProduct(product);
       } else {
-        this.productService.addProduct(product);
+        action$ = this.productService.addProduct(product);
       }
-      this.router.navigate(['/products']);
+
+      action$.subscribe(() => this.router.navigate(['/products']));
     }
   }
 }
